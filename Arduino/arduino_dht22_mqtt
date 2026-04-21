@@ -1,0 +1,113 @@
+#include <SPI.h>
+#include <Ethernet.h>
+#include <PubSubClient.h>
+#include "DHT.h"
+
+#define lightPin 5
+#define DHTPIN 2
+#define DHTTYPE DHT22
+
+DHT dht(DHTPIN, DHTTYPE);
+
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEE };
+EthernetClient ethClient;
+PubSubClient client(ethClient);
+
+const char* broker = "test.mosquitto.org";
+const int port = 1883;
+const char* subTopic = "real_unique_topic_1";
+const char* pubTopic = "real_unique_topic_2";
+
+unsigned long previousMillis = 0;
+const long interval = 8000;
+
+void sensorReadPublish() {
+  // Μικρή καθυστέρηση για σταθερότητα του αισθητήρα
+  static unsigned long lastSensorRead = 0;
+  if (millis() - lastSensorRead < 2000) return;
+  lastSensorRead = millis();
+
+  float humidity = dht.readHumidity();
+  float temperature = dht.readTemperature();
+  float heat_index = dht.computeHeatIndex(temperature, humidity, false);
+
+  if (isnan(humidity) || isnan(temperature) || isnan(heat_index)) {
+    Serial.println("error occured");
+  } else {
+    Serial.print(F("Humidity: "));
+    Serial.print(humidity);
+    Serial.print(F("%  Temperature: "));
+    Serial.print(temperature);
+    Serial.print(F("°C "));
+    Serial.print(F("Heat index: "));
+    Serial.print(heat_index);
+    Serial.println(F("°C"));
+  }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  message.trim();
+
+  if (message == "alert") {
+    digitalWrite(lightPin, HIGH);
+    client.publish(pubTopic, "LED_ON");
+  } 
+  else if (message == "stopalert") {
+    digitalWrite(lightPin, LOW);
+    client.publish(pubTopic, "LED_OFF");
+  }
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Τυχαίο ID για να μην υπάρχουν συγκρούσεις στον broker
+    if (client.connect("Arduino_test_12345")) {
+      Serial.println("connected");
+      client.subscribe(subTopic);
+      Serial.println("Subscribed to topic");
+      Serial.println(subTopic);
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" retry in 5 seconds");
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(lightPin, OUTPUT);
+  digitalWrite(lightPin, LOW);
+  
+  Ethernet.begin(mac);
+  delay(2000);
+
+  dht.begin();
+  
+  Serial.print("IP Address: ");
+  Serial.println(Ethernet.localIP());
+  
+  client.setServer(broker, port);
+  client.setCallback(callback);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+  
+  sensorReadPublish();
+  
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    client.publish(pubTopic, "Arduino alive");
+  }
+}
