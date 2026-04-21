@@ -72,5 +72,32 @@ The system monitors **Temperature**, **Humidity**, and **Heat Index**, stores da
 * Import the `node_red_flow.json` file.
 
 ### 3. Database
+## 🚧 Ongoing Development
+This project is actively being developed and improved to simulate a more production-ready IoT system.
+
+---
+
+## 📈 Future Improvements
+
+### 🔌 Hardware & Embedded
+- Replace Serial communication with WiFi (ESP32)
+- Optimize firmware for real-time performance
+- Add low-power mode for energy efficiency
+
+### 📡 Communication
+- Implement secure MQTT (TLS encryption)
+- Improve topic structure for scalability
+- Add device authentication
+
+### 📊 Data & Visualization
+- Add advanced analytics (trends, anomaly detection)
+- Improve dashboard UI/UX
+
+### 🛠️ System Design
+- Containerize backend services (Docker)
+- Add logging & monitoring
+
+
+---
 * Initialize your SQLite database using the provided schema.
 * Update the SQLite node in Node-RED with your local `.db` file path.
